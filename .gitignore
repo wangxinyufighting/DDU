@@ -1,0 +1,3 @@
+data/ood_detection/pascal/VOCdevkit/
+*/__pycache__/
+*/*/__pycache__/

@@ -7,7 +7,7 @@ from torch.nn import functional as F
 from torch import nn
 
 
-loss_function_dict = {"cross_entropy": F.cross_entropy}
+loss_function_dict = {"cross_entropy": F.cross_entropy, "binary_cross_entropy": F.binary_cross_entropy_with_logits}
 
 
 def train_single_epoch(
@@ -20,7 +20,13 @@ def train_single_epoch(
     model.train()
     train_loss = 0
     num_samples = 0
-    for batch_idx, (data, labels) in enumerate(train_loader):
+    # for batch_idx, (data, labels) in enumerate(train_loader):
+    for batch_idx, data_all in enumerate(train_loader):
+        if isinstance(train_loader, torch.utils.data.dataloader.DataLoader):
+            data, labels = data_all['image'], data_all['label_vec_true']
+        else:
+            data, labels = data_all
+        
         data = data.to(device)
         labels = labels.to(device)
 

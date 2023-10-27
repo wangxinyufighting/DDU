@@ -12,7 +12,11 @@ import torch.backends.cudnn as cudnn
 import data.ood_detection.cifar10 as cifar10
 import data.ood_detection.cifar100 as cifar100
 import data.ood_detection.svhn as svhn
+import data.ood_detection.coco as coco
+import data.ood_detection.pascal_voc as pascal
 import data.dirty_mnist as dirty_mnist
+import data.datsest_multi_label as datsest_multi_label
+
 
 # Import network models
 from net.lenet import lenet
@@ -30,19 +34,21 @@ from utils.train_utils import train_single_epoch, test_single_epoch
 from torch.utils.tensorboard import SummaryWriter
 
 
-dataset_num_classes = {"cifar10": 10, "cifar100": 100, "svhn": 10, "dirty_mnist": 10}
+dataset_num_classes = {"cifar10": 10, "cifar100": 100, "svhn": 10, "dirty_mnist": 10, "coco": 80, 'pascal': 20}
 
 dataset_loader = {
     "cifar10": cifar10,
     "cifar100": cifar100,
     "svhn": svhn,
     "dirty_mnist": dirty_mnist,
+    "coco": coco,
+    "pascal": pascal
 }
 
 models = {
     "lenet": lenet,
     "resnet18": resnet18,
-    "resnet50": resnet50,
+    "resnet50": .gitignoreresnet50,
     "wide_resnet": wrn,
     "vgg16": vgg16,
 }
@@ -91,14 +97,40 @@ if __name__ == "__main__":
         optimizer, milestones=[args.first_milestone, args.second_milestone], gamma=0.1
     )
 
-    train_loader, _ = dataset_loader[args.dataset].get_train_valid_loader(
-        root=args.dataset_root,
-        batch_size=args.train_batch_size,
-        augment=args.data_aug,
-        val_size=0.1,
-        val_seed=args.seed,
-        pin_memory=args.gpu,
-    )
+    if args.dataset in ['pascal']:
+        P = {}
+        P['dataset'] = args.dataset
+        P['val_frac'] = 0.2
+        P['split_seed'] = 1200
+        P['train_set_variant'] = 'observed'
+        P['ss_frac_train'] = 1.0
+        P['val_set_variant'] = 'clean'
+        P['use_feats'] = False
+        P['ss_seed'] = 999
+        P['ss_frac_val'] = 1.0
+        P['bsize'] = args.train_batch_size
+        P['num_workers'] = 4 
+        dataset = datsest_multi_label.get_data(P)
+        dataloader = {}
+
+        train_loader = torch.utils.data.DataLoader(
+                dataset['train'],
+                batch_size = P['bsize'],
+                shuffle = 'train' == 'train',
+                sampler = None,
+                num_workers = P['num_workers'],
+                drop_last = False,
+                pin_memory = True
+            )
+    else:
+        train_loader, _ = dataset_loader[args.dataset].get_train_valid_loader(
+            root=args.dataset_root,
+            batch_size=args.train_batch_size,
+            augment=args.data_aug,
+            val_size=0.1,
+            val_seed=args.seed,
+            pin_memory=args.gpu,
+        )
 
     # Creating summary writer in tensorboard
     writer = SummaryWriter(args.save_loc + "stats_logging/")
